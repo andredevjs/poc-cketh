@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "eth-bridge-poc-backend": {
+      "main": "src/eth-bridge-poc-backend/main.mo",
+      "type": "motoko"
+    },
+    "eth-bridge-poc-frontend": {
+      "dependencies": [
+        "eth-bridge-poc-backend"
+      ],
+      "source": [
+        "src/eth-bridge-poc-frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "eth-bridge-poc-frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
