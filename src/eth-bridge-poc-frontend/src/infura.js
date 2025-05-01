@@ -24,11 +24,16 @@ export async function getTxDetails(hash) {
 
 export const getETHTransaction = async (principal, subaccount, amount) => {
     const contract = new ethers.Contract(HANDLER_CONTRACT_ADDRESS, ERC20_ABI, provider);
+    const feeData = await getFeeData();  // Fetch the current gas price from the network
     const txData = await contract.depositEth.populateTransaction(
       principal,
       subaccount,
       {
-        value: amount
+        value: amount,
+        chainId: 11155111n, // const chainId = await provider.getNetwork().then(network => network.chainId);
+
+        gasLimit: 54046,
+        ...feeData,
       },
       
     );

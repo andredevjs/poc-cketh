@@ -69,11 +69,7 @@ function App() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    // setLoading(true);
-    // const txid = event.target.elements.tx.value;
-    // const txDetails = await getTxDetails(txid);
-    // setTx(txDetails);
-
+   
     const principal = principalToBytes32(OwnerPrincipal);
     const subaccount = principalToBytes32(DevJourneyPrincipal);
     const amount = ethers.parseEther("0.01"); // Use the tx details to get the amount
@@ -97,38 +93,55 @@ function App() {
     const s = signature.slice(32, 64); // Next 32 bytes is s
     const v = signature[64] || 27;  // Last byte is v (recovery id)
 
-    const feeData = await getFeeData();  // Fetch the current gas price from the network
+    // const feeData = await getFeeData();  // Fetch the current gas price from the network
+
+    // Step 3: Create the signed transaction
+    // const addedSignatureTx = ethers.Transaction.from({
+    //   ...tx, // Copy all existing properties of the unsigned transaction
+
+    //   // r: ethers.hexlify(r), 
+    //   // s: ethers.hexlify(s),
+    //   // v: v,
+
+    //   chainId: 11155111, // const chainId = await provider.getNetwork().then(network => network.chainId);
+
+    //   gasLimit: 54046,
+    //   ...feeData,
+    
+    // });
+
+    // const common = new Common({ chain: Sepolia, hardfork: Hardfork.London })
+    // const signedTx = createTx(addedSignatureTx, { common }).addSignature(v,r,s);
+
+    // const addedSignatureTxxx = ethers.Transaction.from({
+    //   data:signedTx.data, // Copy all existing properties of the unsigned transaction
+    //   value:signedTx.value,
+
+    //   r: ethers.hexlify(r), 
+    //   s: ethers.hexlify(s),
+    //   v: v,
+
+    //   chainId: 11155111, // const chainId = await provider.getNetwork().then(network => network.chainId);
+
+    //   gasLimit: 54046,
+    //   ...feeData,
+    
+    // });
+
+    tx.signature = { r: ethers.hexlify(r), 
+      s: ethers.hexlify(s),
+      v: v,};
+      
+      tx.r = ethers.hexlify(r); 
+      tx.s = ethers.hexlify(s);
+      tx.v = v;
+
+    // setLoading(true);
 
     debugger;
-    // Step 3: Create the signed transaction
-    const addedSignatureTx = ethers.Transaction.from({
-      ...tx, // Copy all existing properties of the unsigned transaction
+    const txHex = ethers.hexlify(ethers.Transaction.from(tx).serialized);
+    const receipt = await broadcastTransaction(txHex);
 
-      r: ethers.hexlify(r), 
-      s: ethers.hexlify(s),
-      v: v,
-
-      gasLimit: 33600,
-      ...feeData,
-    
-    });
-
-    const common = new Common({ chain: Sepolia, hardfork: Hardfork.London })
-    const signedTx = createTx(addedSignatureTx, { common }).addSignature(v,r,s);
-
-    const txHex = ethers.hexlify(signedTx.serialize());
-
-    const txhash = ethers.hexlify(signedTx.hash());
-    const xxx = ethers.Transaction.from(txHex);
-    
-    const txHexxx = ethers.hexlify(xxx.serialized);
-
-
-
-    // const gas = await estimateGas(txhash);
-    // console.log(gas);
-    
-    const receipt = await broadcastTransaction(txHexxx);
     setSerializedTx(receipt);
     setLoading(false);
   }
