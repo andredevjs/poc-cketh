@@ -1,0 +1,15 @@
+[package]
+name = "greet_client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio      = { version = "1", features = ["full"] }
+ic-agent   = "0.40.0"
+ic-utils   = "0.40.0"
+candid     = "0.10.13"
+anyhow     = "1.0"
+# make sure reqwest has a TLS backend enabled:
+reqwest    = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+serde = "1.0.219"
+ethers-core = "2.0.14"
