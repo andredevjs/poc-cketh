@@ -7,10 +7,11 @@ actor {
   };
 
   public shared (msg) func sign(message: Text) : async { #Ok : { signature_hex: Text };  #Err : Text } {
-    await ECDSA.signMessage(msg.caller, message);
+    await ECDSA.sign(msg.caller, message);
   };
 
   public query func greet(name : Text) : async Text {
     return "Hello, " # name # "!";
   };
+ 
 }

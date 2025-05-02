@@ -2,7 +2,14 @@
   "canisters": {
     "eth-bridge-poc-backend": {
       "main": "src/eth-bridge-poc-backend/main.mo",
-      "type": "motoko"
+      "type": "motoko",
+      "dependencies": [
+        "evm_rpc"
+      ]
+    },
+    "evm_rpc": {
+      "type": "pull",
+      "id": "7hfb6-caaaa-aaaar-qadga-cai"
     },
     "eth-bridge-poc-frontend": {
       "dependencies": [
