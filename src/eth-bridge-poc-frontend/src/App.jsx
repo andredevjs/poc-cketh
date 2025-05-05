@@ -2,17 +2,15 @@ import { useEffect, useState } from 'react';
 
 import { eth_bridge_poc_backend } from 'declarations/eth-bridge-poc-backend';
 import { ethers } from 'ethers';
-import { serialize } from "@ethersproject/transactions";
-import { keccak256 } from "@ethersproject/keccak256";
-import  {computePublicKey} from "@ethersproject/signing-key";
+
 
 const KEY= ''; // TODO: replace with your Infura key
-const provider = new ethers.JsonRpcProvider(`https://sepolia.infura.io/v3/${KEY}`);
+const provider = new ethers.providers.JsonRpcProvider(`https://sepolia.infura.io/v3/${KEY}`);
 
  function getEthAddress (publicKey) {
   const key = publicKey.startsWith("0x") ? publicKey : `0x${publicKey}`;
-  const uncompressed = computePublicKey(key, /* compressed = */ false);
-  return ethers.computeAddress(uncompressed);
+  const uncompressed = ethers.utils.computePublicKey(key, /* compressed = */ false);
+  return ethers.utils.computeAddress(uncompressed);
 }
 
 function App() {
@@ -46,11 +44,13 @@ function App() {
     fetchPublicKey();
   }, []);
 
-
   async function handleSubmit(event) {
     event.preventDefault();
+    if (!signerAddress) {
+      return;
+    }
    
-    const amount = ethers.parseEther("0.01"); 
+    const amount = ethers.utils.parseEther("0.01"); 
 
     console.log("🔑 Derived address:", signerAddress);
 
@@ -62,47 +62,55 @@ function App() {
     ]);
 
     console.log("🌐 Network:", network.name, "(chainId:", network.chainId + ")");
-    console.log("💰 Balance:", ethers.formatEther(balance), "ETH");
+    console.log("💰 Balance:", ethers.utils.formatEther(balance), "ETH");
+
+    const nonce = await provider.getTransactionCount(signerAddress) 
+    const chainId = Number(network.chainId);
 
     const tx = {
+      type: 2,
+      chainId,
+      nonce,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
+      maxFeePerGas: feeData.maxFeePerGas,
+      gasLimit: 53600,
       to:    '0x4BD55c4D51ba16420eD10c88fB87958d2107e5fA',
       value: amount,
-      gasLimit: 23600,
-      gasPrice: feeData.gasPrice,
+      gasPrice: null,
+      accessList: [],
     };
+    
     console.log('Unsigned transaction object:', tx);
 
-    const unsignedSerialized = serialize(tx);
+    const unsignedSerialized = ethers.utils.serializeTransaction(tx);
     console.log('Unsigned serialized tx:', unsignedSerialized);
 
-    const unsignedBytes = ethers.getBytes(unsignedSerialized);
-    const digest = keccak256(unsignedBytes);
+    const unsignedBytes = ethers.utils.arrayify(unsignedSerialized);
+    const digest = ethers.utils.keccak256(unsignedBytes);
     console.log('Digest being sent for signing:', digest);
 
     const result = await eth_bridge_poc_backend.sign(digest);
-
     const signatureHex ='0x' + result.Ok.signature_hex;
-    console.log('Signed tx hex:', signatureHex);
-
-    const signature = ethers.Signature.from(signatureHex);
-    const { r, s, v } = signature;
-    console.log('Signature components:',  { r, s, v });
-
-    const recovered = ethers.recoverAddress(digest, signature);
-    console.log('Recovered address:', recovered);
-
-    const txHex = serialize({...tx}, signature);
-    console.log("Full serialized transaction (txHex):", txHex);
-    console.log("From address (after signing):", ethers.Transaction.from(txHex).from);
-
-    const txResponse = await provider.broadcastTransaction(txHex);
-    console.log('Transaction Hash:', txResponse);
     
-    // Wait for the transaction to be mined
-    const receipt = await txResponse.wait();
-    console.log('Transaction mined in block:', receipt.blockNumber);
+    const recoveredPubkey = ethers.utils.recoverPublicKey(digest, signatureHex);
+    const recoveredAddress = ethers.utils.computeAddress(recoveredPubkey);
+    console.log('Recovered public key:', recoveredPubkey);
+    console.log('Recovered address:', recoveredAddress);
 
-    setLoading(false);
+    if (recoveredAddress !== signerAddress) {
+      console.error('Recovered address does not match signer address');
+    }
+
+    const signature = ethers.utils.splitSignature(signatureHex);
+    const txHex = ethers.utils.serializeTransaction(tx, signature);
+    console.log("Full serialized transaction (txHex):", txHex);
+
+    const parsedTransaction = ethers.utils.parseTransaction(txHex);
+    console.log(parsedTransaction);
+    console.log("From address (after signing):", parsedTransaction.from);
+    
+    const txResponse = await provider.sendTransaction(txHex);
+    console.log('Transaction Hash:', txResponse);
   }
 
   return (
@@ -111,7 +119,7 @@ function App() {
       <br />
       <br />
       <form action="#" onSubmit={handleSubmit}>
-        <button type="submit" disabled={loading}>{ loading ? 'Loading...' : 'Fund me!' }</button>
+        <button type="submit" disabled={loading || !signerAddress}>{ loading ? 'Loading...' : 'Fund me!' }</button>
       </form>
       <section id="greeting">
         {publicKey === '' ? <p>Loading...</p> : <p>Public key: {' '}<span>{publicKey}</span></p>}
