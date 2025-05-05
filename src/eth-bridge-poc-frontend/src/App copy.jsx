@@ -7,49 +7,6 @@ import {Buffer} from 'buffer';
 const KEY= 'f73cb9db4112430da6338705124793b4'; // TODO: replace with your Infura key
 const provider = new ethers.providers.JsonRpcProvider(`https://sepolia.infura.io/v3/${KEY}`);
 
-function bruteForceV(prehash, sig, pubkey, signerAddress) {
-  // Normalize inputs to hex strings
-  const hash = ethers.utils.hexlify(prehash);
-  const sigHex = ethers.utils.hexlify(sig);
-  const keyHex = ethers.utils.hexlify(pubkey);
-
-  // Get the full, uncompressed reference key ("0x04..." + X + Y)
-  const origKey = ethers.utils.computePublicKey(keyHex, false);
-  
-  // Split the signature into its component parts
-  const { r, s } = ethers.utils.splitSignature(sigHex);
-
-  for (let v = 0; v <= 100000000; v++) {
-    // Build a full 65-byte signature object
-    const fullSig = ethers.utils.joinSignature({ r, s, v });
-
-    try {
-      // Try to recover the public key
-      const recovered = ethers.utils.recoverPublicKey(hash, fullSig);
-
-      if (recovered.toLowerCase() === origKey.toLowerCase()) {
-        return recoveryParam;
-      }
-
-      const address = ethers.utils.computeAddress(recovered);
-      if (address.toLowerCase() === signerAddress.toLowerCase()) {
-        return recoveryParam;
-      }
-    } catch (e) {
-      // ignore invalid recovery attempts
-    }
-  }
-
-  console.error('yParity: failed to recover a matching key', sigHex, keyHex);
-
-  return v;
-
-  // throw new Error(
-  //   `yParity: failed to recover a matching key\n` +
-  //   ` sig: ${sigHex}\n pubkey: ${keyHex}`
-  // );
-}
-
  function getEthAddress (publicKey) {
   const key = publicKey.startsWith("0x") ? publicKey : `0x${publicKey}`;
   const uncompressed = ethers.utils.computePublicKey(key, /* compressed = */ false);
@@ -74,7 +31,7 @@ function App() {
         }
 
         const pb = result.Ok;
-        setPublicKey("0x" + pb.public_key_hex);
+        setPublicKey(pb.public_key_hex);
 
         const addr = getEthAddress(pb.public_key_hex);
         setSignerAddress(addr);
@@ -119,55 +76,38 @@ function App() {
       gasLimit: 53600,
       to:    '0x4BD55c4D51ba16420eD10c88fB87958d2107e5fA',
       value: amount,
-      // gasPrice: feeData.gasPrice,
+      gasPrice: null,
       accessList: [],
     };
     
     console.log('Unsigned transaction object:', tx);
 
-    const unsignedSerialized = ethers.utils.serializeTransaction({...tx});
+    const unsignedSerialized = ethers.utils.serializeTransaction(tx);
     console.log('Unsigned serialized tx:', unsignedSerialized);
 
-    const keccak256 = ethers.utils.keccak256(unsignedSerialized);
-    console.log('Digest keccak256:', keccak256);
+    const unsignedBytes = ethers.utils.arrayify(unsignedSerialized);
+    const digest = ethers.utils.keccak256(unsignedSerialized);
+    console.log('Digest being sent for signing:', digest);
 
-    const sha256 = ethers.utils.sha256(ethers.utils.arrayify(keccak256));
-    console.log('Digest sha256:', sha256);
-    const digest  = sha256;
+    // 3) SHA-256 hash of those UTF-8 bytes
+    const sha256OfHex = ethers.utils.sha256(digest);
+    console.log("SHA256(utf8) digest:", sha256OfHex);
+    // 83045984785c9c331820356d00518232ddfd94c1e39da491a2fe5be826cee80c
+    // 0x3a1027da644f02903708078bf33f7253c3f7a5b400f12abc5b1fc99a059c9f8c
 
-    console.log('Digest send for signing:', digest);
+    const result = await eth_bridge_poc_backend.sign(digest);
+    const signatureHex ='0x' + result.Ok.signature_hex;
     
-    const result = await eth_bridge_poc_backend.signRaw(ethers.utils.arrayify(digest));
-    let signatureHex = '0x' + result.Ok.signature_hex;
-    let signature = ethers.utils.splitSignature(signatureHex);
-
-    const v =   yParity(digest, signatureHex, publicKey, signerAddress);
-
-    signature.v = v;
-    signatureHex = ethers.utils.joinSignature(signature);
-
-    let recoveredPubkey = ethers.utils.recoverPublicKey(digest, signatureHex);
-    let recoveredAddress = ethers.utils.computeAddress(recoveredPubkey);
+    const recoveredPubkey = ethers.utils.recoverPublicKey(digest, signatureHex);
+    const recoveredAddress = ethers.utils.computeAddress(recoveredPubkey);
     console.log('Recovered public key:', recoveredPubkey);
     console.log('Recovered address:', recoveredAddress);
-    
-    if (recoveredAddress.toLowerCase() !== signerAddress.toLowerCase()) {
+
+    if (recoveredAddress !== signerAddress) {
       console.error('Recovered address does not match signer address');
-
-
-    const t  = ethers.utils.joinSignature(signatureHex);
-      const sigBytes = ethers.utils.arrayify(t);
-      sigBytes[32] += 128; // set the high bit of s
-      signatureHex = ethers.utils.hexlify(sigBytes);
-      console.log('Adjusted signatureHex (MSB set):', signatureHex);
-  
-      // you can re-recover if you want to double-check
-      recoveredPubkey = ethers.utils.recoverPublicKey(digest, signatureHex);
-      recoveredAddress = ethers.utils.computeAddress(recoveredPubkey);
-      console.log('Recovered public key:', recoveredPubkey);
-      console.log('Recovered address after tweak:', recoveredAddress);
     }
 
+    const signature = ethers.utils.splitSignature(signatureHex);
     const txHex = ethers.utils.serializeTransaction(tx, signature);
     console.log("Full serialized transaction (txHex):", txHex);
 

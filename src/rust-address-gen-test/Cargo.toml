@@ -13,3 +13,5 @@ anyhow     = "1.0"
 reqwest    = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde = "1.0.219"
 ethers-core = "2.0.14"
+ic-evm-utils = "4.0.0"
+evm-rpc-canister-types = "5.0.1"
