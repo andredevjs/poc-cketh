@@ -6,7 +6,12 @@ use candid::{CandidType};
 use serde::Deserialize;
 use ethers_core::utils::{hex, keccak256};
 use ethers_core::abi::ethereum_types::{Address, U256};
-
+use ic_evm_utils::eth_send_raw_transaction::{contract_interaction, ContractDetails};
+use evm_rpc_canister_types::{
+    BlockTag, GetBlockByNumberResult, GetLogsArgs, GetLogsResult, HttpOutcallError,
+    MultiGetBlockByNumberResult, MultiGetLogsResult, RejectionCode, RpcError, EVM_RPC,
+    EvmRpcCanister
+  };
 #[derive(CandidType, Deserialize, Debug)]
 enum PublicKeyResponse {
     /// matches `Err: text`
@@ -64,6 +69,11 @@ async fn main() -> Result<()> {
             eprintln!("public_key returned error: {}", err);
         }
     }
+
+    pub const CANISTER_ID: Principal =
+    Principal::from_slice(b"\x00\x00\x00\x00\x02\x30\x00\xCC\x01\x01"); // 7hfb6-caaaa-aaaar-qadga-cai
+    pub const EVM_RPC: EvmRpcCanister = EvmRpcCanister(CANISTER_ID);
+   
 
     Ok(())
 }
