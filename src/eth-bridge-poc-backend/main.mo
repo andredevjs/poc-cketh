@@ -9,15 +9,13 @@ import IcEcdsaApi "./utils/IcEcdsaApi";
 import AU         "mo:evm-txs/utils/ArrayUtils";
 
 actor {
-    // For testing, let's use a fixed principal.
-    private let caller: Principal =
-        Principal.fromText(
-            "udsqg-qo6cj-4agux-yt2kq-ke242-ylhwx-xio5v-nhsh3-dpjyj-sfqbi-kqe"
-        );
     let keyName = "dfx_test_key";
-    let derivationPath = [Principal.toBlob(caller)];
     let icEcdsaApi = IcEcdsaApi.IcEcdsaApi();
-
+ 
+    private let caller: Principal = Principal.fromText(
+        "udsqg-qo6cj-4agux-yt2kq-ke242-ylhwx-xio5v-nhsh3-dpjyj-sfqbi-kqe"
+    );
+    let derivationPath = [Principal.toBlob(caller)];
     type IC = actor {
         ecdsa_public_key: ({
             canister_id: ?Principal;
@@ -40,8 +38,8 @@ actor {
 
     let ic: IC = actor("aaaaa-aa");
 
-    public shared(_msg) func create_address(): async Result.Result<{address: Text}, Text> {
-        switch (await* Address.create(keyName, derivationPath, icEcdsaApi)) {
+    public shared(msg) func create_address(): async Result.Result<{address: Text}, Text> {
+        switch (await* Address.create(keyName, [Principal.toBlob(msg.caller)], icEcdsaApi)) {
             case (#err(msg)) {
                 return #err(msg);
             };
@@ -51,12 +49,14 @@ actor {
         };
     };
 
-    public shared func public_key(): async { #Ok: { public_key_hex: Text }; #Err: Text } {
+    public shared(_msg) func public_key(): async { #Ok: { public_key_hex: Text }; #Err: Text } {
         try {
             let { public_key } =
                 await ic.ecdsa_public_key({
                     canister_id = null;
+                    // derivation_path = [Principal.toBlob(msg.caller)];
                     derivation_path = derivationPath;
+                    
                     key_id = { curve = #secp256k1; name = "dfx_test_key" };
                 });
             #Ok({ public_key_hex = Hex.encode(Blob.toArray(public_key)) })
@@ -69,6 +69,7 @@ actor {
        try {
             let { signature } = await ic.sign_with_ecdsa({
                 message_hash = Blob.fromArray(AU.fromText(digest));
+                // derivation_path = [Principal.toBlob(msg.caller)];
                 derivation_path = derivationPath;
                 key_id = { curve = #secp256k1; name = keyName };
             });
