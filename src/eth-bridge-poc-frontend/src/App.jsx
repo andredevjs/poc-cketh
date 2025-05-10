@@ -107,9 +107,9 @@ function App() {
 
     const iface = new ethers.utils.Interface(USDC_ABI);
     const decoded = iface.decodeFunctionData("transfer", tx.data);
-    if (decoded[0] !== HANDLER_CONTRACT_ADDRESS || tx.to !== USDC_CONTRACT_ADDRESS) {
-      throw new Error("Invalid contract address");
-    }
+    // if (decoded[0] !== HANDLER_CONTRACT_ADDRESS || tx.to !== USDC_CONTRACT_ADDRESS) {
+    //   throw new Error("Invalid contract address");
+    // }
 
     if (type === TX_TYPES.APPROVE_USDC) {
       return usdcContract.populateTransaction.approve(
